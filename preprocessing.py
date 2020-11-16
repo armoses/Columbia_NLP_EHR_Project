@@ -119,15 +119,15 @@ stop_words = stopwords.words('english')
 for i in no_stopw_data.columns: # get cols
     no_stopw_data[i] = no_stopw_data[i].apply(lambda x: ' '.join([word for word in word_tokenize(x) if word not in (stop_words)])) # I think the code works, but looks like two dataset are not different. 
 
-for i in no_stopw_data.columns: # sanity check
-    if no_stopw_data[i].all() == raw_data[i].all():
-        print(i, ": same") # maybe there aren't manystop words in medical scripts?
-    else:
-        print(i, "not the same!! GJ")
-
 # Stem
+stem_data = no_stopw_data
 
+from nltk.stem import PorterStemmer
+ps = PorterStemmer()
+for i in stem_data.columns: # get cols
+    stem_data[i] = stem_data[i].apply(lambda x: " ".join([ps.stem(word) for word in word_tokenize(x)]))
 
+        
 # Count vectorizer
 
 
