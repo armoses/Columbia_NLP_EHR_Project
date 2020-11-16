@@ -3,11 +3,10 @@ Final project for QMSS 5067: analyzing health records with NLP techniques
 
 DONE:
 - Explore data
+- Preprocess
 
 TODO:
-- Preprocess
-    - remove stop words done (looks like there is no stop words...)
-    - stem done; 
+- PCA
 - Train models
     - Random forest
     - Bayesian methods
