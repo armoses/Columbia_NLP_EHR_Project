@@ -98,13 +98,32 @@ plt.show()
 # and see what gets the best performance...?
 
 # Train-test split
-
+from sklearn.model_selection import train_test_split
+np.random.seed(5) # Scikit Learn does not have its own global random state but uses the numpy random state instead.
+train, test = train_test_split(raw_data, test_size=0.2)  # split to 8:2 training:test
 
 # Get dataframes with respective column(s) for each of the options above
+dscrp_data = raw_data["description"]
+med_special_data = raw_data["medical_speciality"]
+trscrp_data = raw_data["transcription"]
+samp_name_data = raw_data["sample_name"]
+kwords_data = raw_data["keywords"]
 
 
 # Remove stop words
+no_stopw_data = raw_data
+from nltk.corpus import stopwords 
+from nltk.tokenize import word_tokenize 
+stop_words = stopwords.words('english')
 
+for i in no_stopw_data.columns: # get cols
+    no_stopw_data[i] = no_stopw_data[i].apply(lambda x: ' '.join([word for word in word_tokenize(x) if word not in (stop_words)])) # I think the code works, but looks like two dataset are not different. 
+
+for i in no_stopw_data.columns: # sanity check
+    if no_stopw_data[i].all() == raw_data[i].all():
+        print(i, ": same") # maybe there aren't manystop words in medical scripts?
+    else:
+        print(i, "not the same!! GJ")
 
 # Stem
 
