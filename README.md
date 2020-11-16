@@ -6,6 +6,7 @@ DONE:
 
 TODO:
 - Preprocess
+    - remove stop words done (looks like there is no stop words...)
 - Train models
     - Random forest
     - Bayesian methods
