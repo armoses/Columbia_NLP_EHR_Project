@@ -10,7 +10,7 @@ TODO:
 - Train models
     - Random forest
     - Bayesian methods
-    - K-Means
+    - K Nearest Neighbors
     - Try Vidya's suggestion of grouping specialties/labels and doing a multi-level model (e.g., first surgery vs not-surgery, then narrow down further)
 - Evaluate models
 
