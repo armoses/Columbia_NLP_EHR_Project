@@ -4,18 +4,19 @@ Final project for QMSS 5067: analyzing health records with NLP techniques
 DONE:
 - Explore data
 - Preprocess
+- PCA
+- Models:
+    - Random Forest
+    - K-Nearest Neighbors
+    - Multi-step (surgery/no surgery + multi-class on no-surgery)
+    - LDA
 
 TODO:
-- PCA `done`
 - Train models
-    - Random forest `done`
     - Bayesian methods
-    - K Nearest Neighbors `done`
-    - Try Vidya's suggestion of grouping specialties/labels and doing a multi-level model (e.g., first surgery vs not-surgery, then narrow down further)
+    - Hierarchical methods(?)
+    - Clustering methods (formatted like LDA)
+    
 - Evaluate models
 
-QUESTION:
-
-- the model score looks a bit poor...? 
-  - `rfc.score()` `knn.score()`
 
