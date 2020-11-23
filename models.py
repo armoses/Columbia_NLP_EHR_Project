@@ -23,18 +23,42 @@ from sklearn.decomposition import PCA
 pca = PCA(n_components=.95)
 trscrp_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['trscrp_train_data_vec']))
 trscrp_vec_test = pd.DataFrame(pca.transform(vec_dict['trscrp_test_data_vec']))
+trscrp_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['trscrp_train_data_tfidf']))
+trscrp_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['trscrp_test_data_tfidf']))
 
+kwords_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['kwords_train_data_vec']))
+kwords_vec_test = pd.DataFrame(pca.transform(vec_dict['kwords_test_data_vec']))
+kwords_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['kwords_train_data_tfidf']))
+kwords_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['kwords_test_data_tfidf']))
 
-#%% Classic supervised models
+samp_name_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['samp_name_train_data_vec']))
+samp_name_vec_test = pd.DataFrame(pca.transform(vec_dict['samp_name_test_data_vec']))
+samp_name_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['samp_name_train_data_tfidf']))
+samp_name_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['samp_name_test_data_tfidf']))
+#%% Random Forest Classifier
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report
-rfc = RandomForestClassifier(random_state=1).fit(trscrp_vec_train, 
-                                                 train_labels)
-rfc_pred = rfc.predict(trscrp_vec_test)
-class_rep = classification_report(rfc_pred, test_labels, zero_division=0)
+rfc = RandomForestClassifier(random_state=1)
+
+# params =  {'n_estimators':[50, 100, 200],
+#             'max_depth' : [2,4,8],
+#            }
+# rfc_grid = GridSearchCV(estimator=rfc, param_grid=params, cv= 3).fit(trscrp_tfidf_train, train_labels)
+# best params: {'max_depth': 4, 'n_estimators': 50}
+
+rfc = RandomForestClassifier(random_state=1, max_depth=4, n_estimators=50).fit(vec_dict['trscrp_train_data_vec'], train_labels)
+rfc_pred = rfc.predict(vec_dict['trscrp_test_data_vec'])
+class_rep_rfc_trscrp = classification_report(rfc_pred, test_labels, zero_division=0)
 # rfc.score(vec_dict['trscrp_test_data_vec'], test_labels)
 
+rfc = RandomForestClassifier().fit(vec_dict['kwords_train_data_vec'], train_labels)
+rfc_pred = rfc.predict(vec_dict['kwords_test_data_vec'])
+class_rep_rfc_kwords = classification_report(rfc_pred, test_labels, zero_division=0)
+
+h = confusion_matrix(rfc_pred, test_labels, normalize='true')
+sb.heatmap(h)
 
 #%% K-Nearest Neighbors
 from sklearn.neighbors import KNeighborsClassifier
@@ -44,18 +68,22 @@ neighbors = np.arange(1,9)
 train_accuracy =np.empty(len(neighbors))
 test_accuracy = np.empty(len(neighbors))
 
-for i,k in enumerate(neighbors):
+from tqdm import tqdm
+for i,k in tqdm(enumerate(neighbors)):
     #Setup a knn classifier with k neighbors
     knn = KNeighborsClassifier(n_neighbors=k)
     
     #Fit the model
-    knn.fit(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    # knn.fit(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    knn.fit(trscrp_vec_train, train_labels)
     
     #Compute accuracy on the training set
-    train_accuracy[i] = knn.score(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    # train_accuracy[i] = knn.score(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    train_accuracy[i] = knn.score(trscrp_vec_train, train_labels)
     
     #Compute accuracy on the test set
-    test_accuracy[i] = knn.score(tfidf_dict["trscrp_test_data_tfidf"], test_labels) 
+    # test_accuracy[i] = knn.score(tfidf_dict["trscrp_test_data_tfidf"], test_labels) 
+    test_accuracy[i] = knn.score(trscrp_vec_test, test_labels) 
 
 #Generate plot
 plt.title('k-NN Varying number of neighbors')
@@ -65,7 +93,17 @@ plt.legend()
 plt.xlabel('Number of neighbors')
 plt.ylabel('Accuracy')
 plt.show()
-    
+
+knn.fit(trscrp_vec_train, train_labels)
+knn_test_pred = knn.predict(trscrp_vec_test)
+class_rep_knn_trscrp = classification_report(knn_test_pred, test_labels, zero_division=0)
+
+knn.fit(kwords_vec_train, train_labels)
+knn_test_pred = knn.predict(kwords_vec_test)
+class_rep_knn_kwords = classification_report(knn_test_pred, test_labels, zero_division=0)
+
+#%%     
+
 #%% Experimental stuff
 
 ##### LDA
@@ -106,6 +144,9 @@ def run_lda(train_df, test_df):
 lda_trscrp_vec_test, lda_trscrp_vec_specialty_words = run_lda(vec_dict['trscrp_train_data_vec'], 
                                                               vec_dict['trscrp_test_data_vec'])
 
+lda_kwords_vec_test, lda_kwords_vec_specialty_words = run_lda(vec_dict['kwords_train_data_vec'], 
+                                                              vec_dict['kwords_test_data_vec'])
+
 # Evaluate
 from sklearn.metrics import confusion_matrix
 import seaborn as sb
@@ -113,7 +154,8 @@ h = confusion_matrix(lda_trscrp_vec_test, test_labels, normalize='true')
 sb.heatmap(h)
 
 from sklearn.metrics import classification_report
-class_rep = classification_report(lda_trscrp_vec_test, test_labels, zero_division=0)
+class_rep_lda_trscrp = classification_report(lda_trscrp_vec_test, test_labels, zero_division=0)
+class_rep_lda_kwords = classification_report(lda_kwords_vec_test, test_labels, zero_division=0)
 
 
 #### Binary then multi-class models
@@ -165,13 +207,15 @@ log_reg = LogisticRegression()
 # Random Forest for non-surgery
 from sklearn.ensemble import RandomForestClassifier
 rfc = RandomForestClassifier(random_state=1)
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier(n_neighbors=8)
 
-binary_pred, all_predictions = multi_step(vec_dict['trscrp_train_data_vec'], 
-                                          vec_dict['trscrp_test_data_vec'],
-                                          train_labels,log_reg, rfc)
-# binary_pred, all_predictions = multi_step(trscrp_vec_train, 
-#                                           trscrp_vec_test,
+# binary_pred, all_predictions = multi_step(vec_dict['trscrp_train_data_vec'], 
+#                                           vec_dict['trscrp_test_data_vec'],
 #                                           train_labels,log_reg, rfc)
+binary_pred, all_predictions = multi_step(trscrp_vec_train, 
+                                          trscrp_vec_test,
+                                          train_labels,log_reg, knn)
 
 # Evaluate binary and full
 class_rep_bin = classification_report(binary_pred, test_binary_labels, zero_division=0)
