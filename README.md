@@ -6,11 +6,16 @@ DONE:
 - Preprocess
 
 TODO:
-- PCA
+- PCA `done`
 - Train models
-    - Random forest
+    - Random forest `done`
     - Bayesian methods
-    - K Nearest Neighbors
+    - K Nearest Neighbors `done`
     - Try Vidya's suggestion of grouping specialties/labels and doing a multi-level model (e.g., first surgery vs not-surgery, then narrow down further)
 - Evaluate models
+
+QUESTION:
+
+- the model score looks a bit poor...? 
+  - `rfc.score()` `knn.score()`
 
