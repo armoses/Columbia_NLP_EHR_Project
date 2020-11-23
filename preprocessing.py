@@ -15,81 +15,131 @@ import pickle
 
 #%% Load and explore data
 
-# Load data
-raw_data = pd.read_csv('mtsamples.csv', index_col=0) # 4999 x 5
-
-# Look at column names and nulls
-raw_data.columns # 'description', 'medical_specialty', 'sample_name', 'transcription','keywords'
-raw_data.info() # nulls in 'transcription' and 'keywords' columns
-
-# See how many unique entries for each column
-unique_cols = []
-for col in raw_data.columns:
-    unique_cols.append(pd.Series(raw_data[col].unique()))
-    print(f'{col}: {len(raw_data[col].unique())}')
-# description: 2348
-# medical_specialty: 40 # 40 possible classes
-# sample_name: 2377
-# transcription: 2358
-# keywords: 3850
-
-# See all possible keywords
-keywords = raw_data.keywords.loc[raw_data.keywords.isna() == False].tolist()
-keywords = ' '.join(keywords)
-keywords = keywords.split(',')
-keywords = [token.lower().strip() for token in keywords]
-
-unique_keywords = set(keywords) # 11,387 unique keywords (more like key-phrases)
-
-# Not all transcriptions are unique-- are there duplicate rows?
-raw_data = raw_data.drop_duplicates()
-# No duplicates...
-sorted_data = raw_data.sort_values(by=['sample_name', 'transcription', 'medical_specialty'])
-# Each transcription/description/sample_name may appear in multiple row
-# for each medical specialty it is classified as (and different keywords, accordingly)
-# Do we want to use each sample just once or allow multiple classifications?
-# Perhaps we want to do LDA to get a probability/rating of belonging to different specialties
-
-# Plot lengths of entries
-desc_lengths = unique_cols[0].apply(lambda x: len(x.split()))
-plt.hist(desc_lengths)
-plt.title('lengths of descriptions')
-plt.xlabel('words')
-plt.ylabel('samples')
-plt.show()
-
-trans_lengths = unique_cols[3].loc[unique_cols[3].isna() == False].apply(lambda x: len(x.split()))
-plt.hist(trans_lengths)
-plt.title('lengths of transcriptions')
-plt.xlabel('words')
-plt.ylabel('samples')
-plt.show()
-
-key_lengths = sorted([len(key) for key in keywords])[:-253] # 253 key-phrases are >543 words
-plt.hist(key_lengths)
-plt.title('lengths of key-phrases (<500)')
-plt.xlabel('words')
-plt.ylabel('samples')
-plt.show()
-
-name_lengths = unique_cols[2].apply(lambda x: len(x.split()))
-plt.hist(name_lengths, bins=8)
-plt.title('lengths of sample_names')
-plt.xlabel('words')
-plt.ylabel('samples')
-plt.show()
-
-# Plot distribution of labels
-plt.figure(figsize=(12,8))
-labels, label_counts = np.unique(raw_data['medical_specialty'], return_counts=True)
-labels = [val for _,val in sorted(zip(label_counts,labels))]
-label_counts = sorted(label_counts)
-plt.bar(labels, height=label_counts)
-plt.title('label counts')
-plt.xlabel('labels')
-plt.ylabel('counts')
-plt.xticks(rotation=90)
-plt.show()
+def main():
+    # Load data
+    raw_data = pd.read_csv('mtsamples.csv', index_col=0) # 4999 x 5
+    
+    # Look at column names and nulls
+    raw_data.columns # 'description', 'medical_specialty', 'sample_name', 'transcription','keywords'
+    raw_data.info() # nulls in 'transcription' and 'keywords' columns
+    
+    # See how many unique entries for each column
+    unique_cols = []
+    for col in raw_data.columns:
+        unique_cols.append(pd.Series(raw_data[col].unique()))
+        print(f'{col}: {len(raw_data[col].unique())}')
+    # description: 2348
+    # medical_specialty: 40 # 40 possible classes
+    # sample_name: 2377
+    # transcription: 2358
+    # keywords: 3850
+    
+    # See all possible keywords
+    keywords = raw_data.keywords.loc[raw_data.keywords.isna() == False].tolist()
+    keywords = ' '.join(keywords)
+    keywords = keywords.split(',')
+    keywords = [token.lower().strip() for token in keywords]
+    
+    unique_keywords = set(keywords) # 11,387 unique keywords (more like key-phrases)
+    
+    # Not all transcriptions are unique-- are there duplicate rows?
+    raw_data = raw_data.drop_duplicates()
+    # No duplicates...
+    sorted_data = raw_data.sort_values(by=['sample_name', 'transcription', 'medical_specialty'])
+    # Each transcription/description/sample_name may appear in multiple row
+    # for each medical specialty it is classified as (and different keywords, accordingly)
+    # Do we want to use each sample just once or allow multiple classifications?
+    # Perhaps we want to do LDA to get a probability/rating of belonging to different specialties
+    
+    # Plot lengths of entries
+    desc_lengths = unique_cols[0].apply(lambda x: len(x.split()))
+    plt.hist(desc_lengths)
+    plt.title('lengths of descriptions')
+    plt.xlabel('words')
+    plt.ylabel('samples')
+    plt.show()
+    
+    trans_lengths = unique_cols[3].loc[unique_cols[3].isna() == False].apply(lambda x: len(x.split()))
+    plt.hist(trans_lengths)
+    plt.title('lengths of transcriptions')
+    plt.xlabel('words')
+    plt.ylabel('samples')
+    plt.show()
+    
+    key_lengths = sorted([len(key) for key in keywords])[:-253] # 253 key-phrases are >543 words
+    plt.hist(key_lengths)
+    plt.title('lengths of key-phrases (<500)')
+    plt.xlabel('words')
+    plt.ylabel('samples')
+    plt.show()
+    
+    name_lengths = unique_cols[2].apply(lambda x: len(x.split()))
+    plt.hist(name_lengths, bins=8)
+    plt.title('lengths of sample_names')
+    plt.xlabel('words')
+    plt.ylabel('samples')
+    plt.show()
+    
+    # Plot distribution of labels
+    plt.figure(figsize=(12,8))
+    labels, label_counts = np.unique(raw_data['medical_specialty'], return_counts=True)
+    labels = [val for _,val in sorted(zip(label_counts,labels))]
+    label_counts = sorted(label_counts)
+    plt.bar(labels, height=label_counts)
+    plt.title('label counts')
+    plt.xlabel('labels')
+    plt.ylabel('counts')
+    plt.xticks(rotation=90)
+    plt.show()
+    
+    fig, ax = plt.subplots()
+    counts, bins, patches = ax.hist(label_counts, bins=10)
+    ax.set_xticks(bins)
+    plt.title('label counts')
+    plt.xlabel('counts')
+    plt.ylabel('frequency (40 total)')
+    plt.show()
+    
+     # Hospice - Palliative Care: 6
+     # Allergy / Immunology: 7
+     # Autopsy: 8
+     # Lab Medicine - Pathology: 8
+     # Speech - Language: 9
+     # Diets and Nutritions: 10
+     # Rheumatology: 10
+     # Chiropractic: 14
+     # IME-QME-Work Comp etc.: 16
+     # Bariatrics: 18
+     # Endocrinology: 19
+     # Sleep Medicine: 20
+     # Physical Medicine - Rehab: 21
+     # Letters: 23
+     # Cosmetic / Plastic Surgery: 27
+     # Dentistry: 27
+     # Dermatology: 29
+     # Podiatry: 47
+     # Office Notes: 51
+     # Psychiatry / Psychology: 53
+     # Pain Management: 62
+     # Pediatrics - Neonatal: 70
+     # Emergency Room Reports: 75
+     # Nephrology: 81
+     # Ophthalmology: 83
+     # Hematology - Oncology: 90
+     # Neurosurgery: 94
+     # ENT - Otolaryngology: 98
+     # Discharge Summary: 108
+     # Urology: 158
+     # Obstetrics / Gynecology: 160
+     # SOAP / Chart / Progress Notes: 166
+     # Neurology: 223
+     # Gastroenterology: 230
+     # General Medicine: 259
+     # Radiology: 273
+     # Orthopedic: 355
+     # Cardiovascular / Pulmonary: 372
+     # Consult - History and Phy.: 516
+     # Surgery: 1103
 
 
 #%% Pre-process
@@ -213,6 +263,9 @@ def preprocess(raw_data):
 
     return train_data, test_data, train_labels, test_labels, vec_dict, tfidf_dict
 
+# Making sure the main program is not executed when the module is imported
+if __name__ == '__main__':
+    main()
 
 
 
