@@ -28,13 +28,44 @@ trscrp_vec_test = pd.DataFrame(pca.transform(vec_dict['trscrp_test_data_vec']))
 #%% Classic supervised models
 
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
 rfc = RandomForestClassifier(random_state=1).fit(trscrp_vec_train, 
                                                  train_labels)
 rfc_pred = rfc.predict(trscrp_vec_test)
 class_rep = classification_report(rfc_pred, test_labels, zero_division=0)
+# rfc.score(vec_dict['trscrp_test_data_vec'], test_labels)
 
 
+#%% K-Nearest Neighbors
+from sklearn.neighbors import KNeighborsClassifier
 
+#Setup arrays to store training and test accuracies
+neighbors = np.arange(1,9)
+train_accuracy =np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+
+for i,k in enumerate(neighbors):
+    #Setup a knn classifier with k neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    
+    #Fit the model
+    knn.fit(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    
+    #Compute accuracy on the training set
+    train_accuracy[i] = knn.score(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    
+    #Compute accuracy on the test set
+    test_accuracy[i] = knn.score(tfidf_dict["trscrp_test_data_tfidf"], test_labels) 
+
+#Generate plot
+plt.title('k-NN Varying number of neighbors')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training accuracy')
+plt.legend()
+plt.xlabel('Number of neighbors')
+plt.ylabel('Accuracy')
+plt.show()
+    
 #%% Experimental stuff
 
 ##### LDA
@@ -145,5 +176,3 @@ binary_pred, all_predictions = multi_step(vec_dict['trscrp_train_data_vec'],
 # Evaluate binary and full
 class_rep_bin = classification_report(binary_pred, test_binary_labels, zero_division=0)
 class_rep_full = classification_report(all_predictions, test_labels, zero_division=0)
-
-
