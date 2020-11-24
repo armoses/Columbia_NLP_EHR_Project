@@ -10,7 +10,9 @@ Created on Wed Nov 18 14:43:43 2020
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from preprocessing import preprocess
+from preprocessing import preprocess, upsample
+from sklearn.metrics import confusion_matrix
+import seaborn as sb
 
 #%% Load and preprocess data
 
@@ -31,20 +33,25 @@ kwords_vec_test = pd.DataFrame(pca.transform(vec_dict['kwords_test_data_vec']))
 kwords_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['kwords_train_data_tfidf']))
 kwords_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['kwords_test_data_tfidf']))
 
-samp_name_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['samp_name_train_data_vec']))
-samp_name_vec_test = pd.DataFrame(pca.transform(vec_dict['samp_name_test_data_vec']))
-samp_name_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['samp_name_train_data_tfidf']))
-samp_name_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['samp_name_test_data_tfidf']))
+# Upsample the smaller classes to be half as big as surgery
+all_train = pd.concat([vec_dict['trscrp_train_data_vec'], train_labels], axis=1)
+all_test = pd.concat([vec_dict['trscrp_test_data_vec'], test_labels], axis=1)
+new_train = upsample(all_train, 441)
+new_test = upsample(all_test, 111)
+new_train_data = new_train.iloc[:,:-1]
+new_train_labels = new_train.iloc[:,-1]
+new_test_data = new_test.iloc[:,:-1]
+new_test_labels = new_test.iloc[:,-1]
+
 #%% Random Forest Classifier
 
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import GridSearchCV
+# from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import classification_report
 rfc = RandomForestClassifier(random_state=1)
 
 # params =  {'n_estimators':[50, 100, 200],
-#             'max_depth' : [2,4,8],
-#            }
+#             'max_depth' : [2,4,8]}
 # rfc_grid = GridSearchCV(estimator=rfc, param_grid=params, cv= 3).fit(trscrp_tfidf_train, train_labels)
 # best params: {'max_depth': 4, 'n_estimators': 50}
 
@@ -59,6 +66,11 @@ class_rep_rfc_kwords = classification_report(rfc_pred, test_labels, zero_divisio
 
 h = confusion_matrix(rfc_pred, test_labels, normalize='true')
 sb.heatmap(h)
+
+rfc = RandomForestClassifier(random_state=1).fit(new_train_data, new_train_labels)
+new_rfc_pred = rfc.predict(new_test_data)
+class_rep_new_rfc_trscrp = classification_report(new_rfc_pred, new_test_labels, zero_division=0)
+
 
 #%% K-Nearest Neighbors
 from sklearn.neighbors import KNeighborsClassifier
@@ -102,7 +114,26 @@ knn.fit(kwords_vec_train, train_labels)
 knn_test_pred = knn.predict(kwords_vec_test)
 class_rep_knn_kwords = classification_report(knn_test_pred, test_labels, zero_division=0)
 
-#%%     
+#%% Neural Network
+
+from sklearn.neural_network import MLPClassifier
+mlp = MLPClassifier(random_state=3, max_iter=300).fit(trscrp_vec_train, train_labels)
+mlp_pred = mlp.predict(trscrp_vec_test)
+class_rep_mlp_trscrp = classification_report(mlp_pred, test_labels, zero_division=0)
+
+#%% Complement Naive Bayes
+# Supposed to be good on imbalanced data
+
+from sklearn.naive_bayes import ComplementNB
+cnb = ComplementNB()
+cnb.fit(vec_dict['trscrp_train_data_vec'], train_labels)
+cnb_pred = cnb.predict(vec_dict['trscrp_test_data_vec'])
+class_rep_cnb_trscrp = classification_report(cnb_pred, test_labels, zero_division=0)
+
+cnb.fit(new_train_data, new_train_labels)
+cnb_pred = cnb.predict(new_test_data)
+class_rep_cnb_trscrp = classification_report(cnb_pred, new_test_labels, zero_division=0)
+
 
 #%% Experimental stuff
 
@@ -148,8 +179,7 @@ lda_kwords_vec_test, lda_kwords_vec_specialty_words = run_lda(vec_dict['kwords_t
                                                               vec_dict['kwords_test_data_vec'])
 
 # Evaluate
-from sklearn.metrics import confusion_matrix
-import seaborn as sb
+
 h = confusion_matrix(lda_trscrp_vec_test, test_labels, normalize='true')
 sb.heatmap(h)
 

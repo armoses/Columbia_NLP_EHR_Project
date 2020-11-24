@@ -263,6 +263,26 @@ def preprocess(raw_data):
 
     return train_data, test_data, train_labels, test_labels, vec_dict, tfidf_dict
 
+def upsample(in_df, n_new):
+    # in_df should be preprocessed (need 'surgeri' as a label)
+    # adapted from https://elitedatascience.com/imbalanced-classes
+    from sklearn.utils import resample
+    class_dfs = {}
+    for label in in_df.medical_specialty.unique():
+        class_dfs[label] = in_df[in_df.medical_specialty == label]
+        
+    new_df = class_dfs['surgeri'].copy()
+    for label in class_dfs.keys():
+        if label != 'surgeri':
+            upsampled_df = resample(class_dfs[label], 
+                                    replace=True,     # sample with replacement
+                                    n_samples=n_new,    # to match 1/2 surgery class
+                                    random_state=123) # reproducible results
+            
+            new_df = pd.concat([new_df, upsampled_df])
+            
+    return new_df
+
 # Making sure the main program is not executed when the module is imported
 if __name__ == '__main__':
     main()
