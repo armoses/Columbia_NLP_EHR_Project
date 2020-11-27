@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from preprocessing import preprocess, upsample
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
 import seaborn as sb
 
 #%% Load and preprocess data
@@ -19,8 +20,37 @@ import seaborn as sb
 raw_data = pd.read_csv('mtsamples.csv', index_col=0) 
 train_data, test_data, train_labels, test_labels, vec_dict, tfidf_dict = preprocess(raw_data)
 
+#%% Resample all  classes to be the same size
+
+# all_train = pd.concat([vec_dict['trscrp_train_data_vec'], train_labels], axis=1)
+# all_test = pd.concat([vec_dict['trscrp_test_data_vec'], test_labels], axis=1)
+all_train = pd.concat([tfidf_dict['trscrp_train_data_tfidf'], train_labels], axis=1)
+all_test = pd.concat([tfidf_dict['trscrp_test_data_tfidf'], test_labels], axis=1)
+new_train = upsample(all_train, 100).reset_index()
+new_test = upsample(all_test, 25).reset_index()
+new_train_data = new_train.iloc[:,:-1]
+new_train_labels = new_train.iloc[:,-1]
+new_test_data = new_test.iloc[:,:-1]
+new_test_labels = new_test.iloc[:,-1]
+
+#%% Complement Naive Bayes
+# Supposed to be good on imbalanced data
+
+from sklearn.naive_bayes import ComplementNB
+cnb = ComplementNB()
+# cnb.fit(vec_dict['trscrp_train_data_vec'], train_labels)
+# cnb_pred = cnb.predict(vec_dict['trscrp_test_data_vec'])
+# class_rep_cnb_trscrp = classification_report(cnb_pred, test_labels, zero_division=0)
+
+cnb.fit(new_train_data, new_train_labels)
+cnb_pred = cnb.predict(new_test_data)
+class_rep_cnb_trscrp = classification_report(cnb_pred, new_test_labels, zero_division=0)
+
+####################### BEST PERFORMANCE IS THE ONE ABOVE (not commented out) ############
+
 
 #%% Dimensionality Reduction (PCA)
+
 from sklearn.decomposition import PCA
 pca = PCA(n_components=.95)
 trscrp_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['trscrp_train_data_vec']))
@@ -33,21 +63,10 @@ kwords_vec_test = pd.DataFrame(pca.transform(vec_dict['kwords_test_data_vec']))
 kwords_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['kwords_train_data_tfidf']))
 kwords_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['kwords_test_data_tfidf']))
 
-# Upsample the smaller classes to be half as big as surgery
-all_train = pd.concat([vec_dict['trscrp_train_data_vec'], train_labels], axis=1)
-all_test = pd.concat([vec_dict['trscrp_test_data_vec'], test_labels], axis=1)
-new_train = upsample(all_train, 441)
-new_test = upsample(all_test, 111)
-new_train_data = new_train.iloc[:,:-1]
-new_train_labels = new_train.iloc[:,-1]
-new_test_data = new_test.iloc[:,:-1]
-new_test_labels = new_test.iloc[:,-1]
-
 #%% Random Forest Classifier
 
 from sklearn.ensemble import RandomForestClassifier
 # from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import classification_report
 rfc = RandomForestClassifier(random_state=1)
 
 # params =  {'n_estimators':[50, 100, 200],
@@ -120,20 +139,6 @@ from sklearn.neural_network import MLPClassifier
 mlp = MLPClassifier(random_state=3, max_iter=300).fit(trscrp_vec_train, train_labels)
 mlp_pred = mlp.predict(trscrp_vec_test)
 class_rep_mlp_trscrp = classification_report(mlp_pred, test_labels, zero_division=0)
-
-#%% Complement Naive Bayes
-# Supposed to be good on imbalanced data
-
-from sklearn.naive_bayes import ComplementNB
-cnb = ComplementNB()
-cnb.fit(vec_dict['trscrp_train_data_vec'], train_labels)
-cnb_pred = cnb.predict(vec_dict['trscrp_test_data_vec'])
-class_rep_cnb_trscrp = classification_report(cnb_pred, test_labels, zero_division=0)
-
-cnb.fit(new_train_data, new_train_labels)
-cnb_pred = cnb.predict(new_test_data)
-class_rep_cnb_trscrp = classification_report(cnb_pred, new_test_labels, zero_division=0)
-
 
 #%% Experimental stuff
 
@@ -222,7 +227,7 @@ def multi_step(train_df, test_df, train_labels, binary_model, multi_model):
     
 
 
-test_binary_labels = test_labels.copy()
+test_binary_labels = np.array(new_test_labels.copy())
 for i in range(len(test_binary_labels)):
     if test_binary_labels[i] == 'surgeri':
         test_binary_labels[i] = 1
@@ -239,13 +244,16 @@ from sklearn.ensemble import RandomForestClassifier
 rfc = RandomForestClassifier(random_state=1)
 from sklearn.neighbors import KNeighborsClassifier
 knn = KNeighborsClassifier(n_neighbors=8)
+from sklearn.naive_bayes import ComplementNB
+cnb = ComplementNB()
+
 
 # binary_pred, all_predictions = multi_step(vec_dict['trscrp_train_data_vec'], 
 #                                           vec_dict['trscrp_test_data_vec'],
 #                                           train_labels,log_reg, rfc)
-binary_pred, all_predictions = multi_step(trscrp_vec_train, 
-                                          trscrp_vec_test,
-                                          train_labels,log_reg, knn)
+binary_pred, all_predictions = multi_step(new_train_data, 
+                                          new_test_data,
+                                          new_train_labels,log_reg, cnb)
 
 # Evaluate binary and full
 class_rep_bin = classification_report(binary_pred, test_binary_labels, zero_division=0)
