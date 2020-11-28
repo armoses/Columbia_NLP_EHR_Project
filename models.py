@@ -91,7 +91,7 @@ new_rfc_pred = rfc.predict(new_test_data)
 class_rep_new_rfc_trscrp = classification_report(new_rfc_pred, new_test_labels, zero_division=0)
 
 
-#%% K-Nearest Neighbors
+#%% K-Nearest Neighbors (plots are saved)
 from sklearn.neighbors import KNeighborsClassifier
 
 #Setup arrays to store training and test accuracies
@@ -100,24 +100,24 @@ train_accuracy =np.empty(len(neighbors))
 test_accuracy = np.empty(len(neighbors))
 
 from tqdm import tqdm
-for i,k in tqdm(enumerate(neighbors)):
+for i,k in tqdm(enumerate(neighbors)): #train with tfidf
     #Setup a knn classifier with k neighbors
     knn = KNeighborsClassifier(n_neighbors=k)
     
     #Fit the model
     # knn.fit(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
-    knn.fit(trscrp_vec_train, train_labels)
+    knn.fit(kwords_tfidf_train, train_labels)
     
     #Compute accuracy on the training set
     # train_accuracy[i] = knn.score(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
-    train_accuracy[i] = knn.score(trscrp_vec_train, train_labels)
+    train_accuracy[i] = knn.score(kwords_tfidf_train, train_labels)
     
     #Compute accuracy on the test set
     # test_accuracy[i] = knn.score(tfidf_dict["trscrp_test_data_tfidf"], test_labels) 
-    test_accuracy[i] = knn.score(trscrp_vec_test, test_labels) 
+    test_accuracy[i] = knn.score(kwords_tfidf_test, test_labels) 
 
 #Generate plot
-plt.title('k-NN Varying number of neighbors')
+plt.title('k-NN Varying number of neighbors: kwords_tfidf')
 plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
 plt.plot(neighbors, train_accuracy, label='Training accuracy')
 plt.legend()
@@ -125,13 +125,57 @@ plt.xlabel('Number of neighbors')
 plt.ylabel('Accuracy')
 plt.show()
 
-knn.fit(trscrp_vec_train, train_labels)
-knn_test_pred = knn.predict(trscrp_vec_test)
-class_rep_knn_trscrp = classification_report(knn_test_pred, test_labels, zero_division=0)
+# train with kwords_vec
+neighbors = np.arange(1,9)
+train_accuracy =np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+for i,k in tqdm(enumerate(neighbors)):
+    #Setup a knn classifier with k neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    
+    #Fit the model
+    knn.fit(kwords_vec_train, train_labels)
+    
+    #Compute accuracy on the training set
+    train_accuracy[i] = knn.score(kwords_vec_train, train_labels)
+    
+    #Compute accuracy on the test set
+    test_accuracy[i] = knn.score(kwords_vec_test, test_labels) 
 
-knn.fit(kwords_vec_train, train_labels)
-knn_test_pred = knn.predict(kwords_vec_test)
-class_rep_knn_kwords = classification_report(knn_test_pred, test_labels, zero_division=0)
+#Generate plot
+plt.title('k-NN Varying number of neighbors: kwords_vec')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training accuracy')
+plt.legend()
+plt.xlabel('Number of neighbors')
+plt.ylabel('Accuracy')
+plt.show()
+
+# train with new_data
+neighbors = np.arange(1,9)
+train_accuracy =np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+for i,k in tqdm(enumerate(neighbors)):
+    #Setup a knn classifier with k neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    
+    #Fit the model
+    knn.fit(new_train_data, new_train_labels)
+    
+    #Compute accuracy on the training set
+    train_accuracy[i] = knn.score(new_train_data, new_train_labels)
+    
+    #Compute accuracy on the test set
+    test_accuracy[i] = knn.score(new_test_data, new_test_labels) 
+
+#Generate plot
+plt.title('k-NN Varying number of neighbors: new_train data')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training accuracy')
+plt.legend()
+plt.xlabel('Number of neighbors')
+plt.ylabel('Accuracy')
+plt.show()
 
 #%% Neural Network
 
@@ -139,6 +183,11 @@ from sklearn.neural_network import MLPClassifier
 mlp = MLPClassifier(random_state=3, max_iter=300).fit(trscrp_vec_train, train_labels)
 mlp_pred = mlp.predict(trscrp_vec_test)
 class_rep_mlp_trscrp = classification_report(mlp_pred, test_labels, zero_division=0)
+
+# with new data
+mlp = MLPClassifier(random_state=3, max_iter=300).fit(new_train_data, new_train_labels)
+mlp_pred = mlp.predict(new_test_data)
+class_rep_mlp_trscrp = classification_report(mlp_pred, new_test_labels, zero_division=0) # 0.42 accuracy
 
 #%% Experimental stuff
 
