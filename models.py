@@ -10,49 +10,36 @@ Created on Wed Nov 18 14:43:43 2020
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from preprocessing import preprocess, upsample
+from preprocessing import *
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
 import seaborn as sb
 
-#%% Load and preprocess data
+#%% Load and preprocess data (with and without resampling)
 
 raw_data = pd.read_csv('mtsamples.csv', index_col=0) 
-train_data, test_data, train_labels, test_labels, vec_dict, tfidf_dict = preprocess(raw_data)
+train_labels, test_labels, vec_dict, tfidf_dict = preprocess(raw_data, resample=False)
+rs_train_labels, rs_test_labels, rs_vec_dict, rs_tfidf_dict = preprocess(raw_data, 
+                                                                         resample=True, 
+                                                                         n_resampled=1103)
 
-#%% Resample all  classes to be the same size
-
-# all_train = pd.concat([vec_dict['trscrp_train_data_vec'], train_labels], axis=1)
-# all_test = pd.concat([vec_dict['trscrp_test_data_vec'], test_labels], axis=1)
-all_train = pd.concat([tfidf_dict['trscrp_train_data_tfidf'], train_labels], axis=1)
-all_test = pd.concat([tfidf_dict['trscrp_test_data_tfidf'], test_labels], axis=1)
-new_train = upsample(all_train, 100).reset_index()
-new_test = upsample(all_test, 25).reset_index()
-new_train_data = new_train.iloc[:,:-1]
-new_train_labels = new_train.iloc[:,-1]
-new_test_data = new_test.iloc[:,:-1]
-new_test_labels = new_test.iloc[:,-1]
 
 #%% Complement Naive Bayes
-# Supposed to be good on imbalanced data
 
 from sklearn.naive_bayes import ComplementNB
 cnb = ComplementNB()
-# cnb.fit(vec_dict['trscrp_train_data_vec'], train_labels)
-# cnb_pred = cnb.predict(vec_dict['trscrp_test_data_vec'])
-# class_rep_cnb_trscrp = classification_report(cnb_pred, test_labels, zero_division=0)
 
-cnb.fit(new_train_data, new_train_labels)
-cnb_pred = cnb.predict(new_test_data)
-class_rep_cnb_trscrp = classification_report(cnb_pred, new_test_labels, zero_division=0)
-
-####################### BEST PERFORMANCE IS THE ONE ABOVE (not commented out) ############
+cnb.fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+cnb_pred = cnb.predict(rs_tfidf_dict['trscrp_test_data_tfidf'])
+class_rep_cnb_trscrp = classification_report(cnb_pred, rs_test_labels, zero_division=0) # 0.77 accuracy with n_resampled=1103
 
 
 #%% Dimensionality Reduction (PCA)
 
 from sklearn.decomposition import PCA
 pca = PCA(n_components=.95)
+
+# Not resampled
 trscrp_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['trscrp_train_data_vec']))
 trscrp_vec_test = pd.DataFrame(pca.transform(vec_dict['trscrp_test_data_vec']))
 trscrp_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['trscrp_train_data_tfidf']))
@@ -66,9 +53,9 @@ kwords_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['kwords_test_data_tfid
 #%% Random Forest Classifier
 
 from sklearn.ensemble import RandomForestClassifier
-# from sklearn.model_selection import GridSearchCV
 rfc = RandomForestClassifier(random_state=1)
 
+# from sklearn.model_selection import GridSearchCV
 # params =  {'n_estimators':[50, 100, 200],
 #             'max_depth' : [2,4,8]}
 # rfc_grid = GridSearchCV(estimator=rfc, param_grid=params, cv= 3).fit(trscrp_tfidf_train, train_labels)
@@ -86,9 +73,9 @@ class_rep_rfc_kwords = classification_report(rfc_pred, test_labels, zero_divisio
 h = confusion_matrix(rfc_pred, test_labels, normalize='true')
 sb.heatmap(h)
 
-rfc = RandomForestClassifier(random_state=1).fit(new_train_data, new_train_labels)
-new_rfc_pred = rfc.predict(new_test_data)
-class_rep_new_rfc_trscrp = classification_report(new_rfc_pred, new_test_labels, zero_division=0)
+rfc = RandomForestClassifier(random_state=1).fit(rs_vec_dict['trscrp_train_data_vec'], rs_train_labels)
+rs_rfc_pred = rfc.predict(rs_vec_dict['trscrp_test_data_vec'])
+class_rep_rs_rfc_trscrp = classification_report(rs_rfc_pred, rs_test_labels, zero_division=0)
 
 
 #%% K-Nearest Neighbors (plots are saved)
@@ -151,7 +138,7 @@ plt.xlabel('Number of neighbors')
 plt.ylabel('Accuracy')
 plt.show()
 
-# train with new_data
+# train with rs_data
 neighbors = np.arange(1,9)
 train_accuracy =np.empty(len(neighbors))
 test_accuracy = np.empty(len(neighbors))
@@ -160,16 +147,16 @@ for i,k in tqdm(enumerate(neighbors)):
     knn = KNeighborsClassifier(n_neighbors=k)
     
     #Fit the model
-    knn.fit(new_train_data, new_train_labels)
+    knn.fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
     
     #Compute accuracy on the training set
-    train_accuracy[i] = knn.score(new_train_data, new_train_labels)
+    train_accuracy[i] = knn.score(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
     
     #Compute accuracy on the test set
-    test_accuracy[i] = knn.score(new_test_data, new_test_labels) 
+    test_accuracy[i] = knn.score(rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels) 
 
 #Generate plot
-plt.title('k-NN Varying number of neighbors: new_train data')
+plt.title('k-NN Varying number of neighbors: rs_train data')
 plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
 plt.plot(neighbors, train_accuracy, label='Training accuracy')
 plt.legend()
@@ -184,10 +171,10 @@ mlp = MLPClassifier(random_state=3, max_iter=300).fit(trscrp_vec_train, train_la
 mlp_pred = mlp.predict(trscrp_vec_test)
 class_rep_mlp_trscrp = classification_report(mlp_pred, test_labels, zero_division=0)
 
-# with new data
-mlp = MLPClassifier(random_state=3, max_iter=300).fit(new_train_data, new_train_labels)
-mlp_pred = mlp.predict(new_test_data)
-class_rep_mlp_trscrp = classification_report(mlp_pred, new_test_labels, zero_division=0) # 0.42 accuracy
+# with resampled data
+mlp = MLPClassifier(random_state=3, max_iter=2).fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+mlp_pred = mlp.predict(rs_tfidf_dict['trscrp_test_data_tfidf'])
+class_rep_mlp_trscrp = classification_report(mlp_pred, rs_test_labels, zero_division=0) # 0.79 accuracy (2 iterations)
 
 #%% Experimental stuff
 
@@ -195,11 +182,13 @@ class_rep_mlp_trscrp = classification_report(mlp_pred, new_test_labels, zero_div
 from sklearn.decomposition import LatentDirichletAllocation
 n_labels = len(raw_data.medical_specialty.unique())
 
-def run_lda(train_df, test_df):
+def run_lda(train_df, test_df, train_labels):
+    print('Running LDA...')
     lda = LatentDirichletAllocation(random_state=0, n_components=n_labels)
     train_trans = lda.fit_transform(train_df)
     lda_predicted_labels = pd.DataFrame(lda.transform(test_df))
     
+    print('Getting test predictions...')
     model_comps = pd.DataFrame(lda.components_)
     model_comps = model_comps.div(model_comps.sum(axis=1), axis=0)
     model_comps.columns = train_df.columns
@@ -215,6 +204,7 @@ def run_lda(train_df, test_df):
     lda_predicted_labels.columns = component_labels.values()
     lda_predicted_labels = lda_predicted_labels.idxmax(axis=1)
     
+    print('Finding key words for each specialty...')
     label_components = {}
     for label in train_labels.unique():
         this_label_df = pd.DataFrame(train_trans[train_labels == label])
@@ -227,18 +217,14 @@ def run_lda(train_df, test_df):
     return lda_predicted_labels, specialty_words
 
 lda_trscrp_vec_test, lda_trscrp_vec_specialty_words = run_lda(vec_dict['trscrp_train_data_vec'], 
-                                                              vec_dict['trscrp_test_data_vec'])
+                                                              vec_dict['trscrp_test_data_vec'],
+                                                              train_labels) # 0.35 accuracy
 
 lda_kwords_vec_test, lda_kwords_vec_specialty_words = run_lda(vec_dict['kwords_train_data_vec'], 
                                                               vec_dict['kwords_test_data_vec'])
 
 # Evaluate
-
-h = confusion_matrix(lda_trscrp_vec_test, test_labels, normalize='true')
-sb.heatmap(h)
-
-from sklearn.metrics import classification_report
-class_rep_lda_trscrp = classification_report(lda_trscrp_vec_test, test_labels, zero_division=0)
+class_rep_lda_trscrp = classification_report(lda_trscrp_vec_test, rs_test_labels, zero_division=0)
 class_rep_lda_kwords = classification_report(lda_kwords_vec_test, test_labels, zero_division=0)
 
 
@@ -276,7 +262,7 @@ def multi_step(train_df, test_df, train_labels, binary_model, multi_model):
     
 
 
-test_binary_labels = np.array(new_test_labels.copy())
+test_binary_labels = np.array(rs_test_labels.copy())
 for i in range(len(test_binary_labels)):
     if test_binary_labels[i] == 'surgeri':
         test_binary_labels[i] = 1
@@ -300,9 +286,9 @@ cnb = ComplementNB()
 # binary_pred, all_predictions = multi_step(vec_dict['trscrp_train_data_vec'], 
 #                                           vec_dict['trscrp_test_data_vec'],
 #                                           train_labels,log_reg, rfc)
-binary_pred, all_predictions = multi_step(new_train_data, 
-                                          new_test_data,
-                                          new_train_labels,log_reg, cnb)
+binary_pred, all_predictions = multi_step(rs_tfidf_dict['trscrp_train_data_tfidf'], 
+                                          rs_tfidf_dict['trscrp_test_data_tfidf'],
+                                          rs_train_labels,log_reg, cnb)
 
 # Evaluate binary and full
 class_rep_bin = classification_report(binary_pred, test_binary_labels, zero_division=0)
