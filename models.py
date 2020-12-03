@@ -20,8 +20,46 @@ import seaborn as sb
 raw_data = pd.read_csv('mtsamples.csv', index_col=0) 
 train_labels, test_labels, vec_dict, tfidf_dict = preprocess(raw_data, resample=False)
 rs_train_labels, rs_test_labels, rs_vec_dict, rs_tfidf_dict = preprocess(raw_data, 
-                                                                         resample=True, 
-                                                                         n_resampled=1103)
+                                                                         resample=True,
+                                                                         max_features=6000,
+                                                                         ngram_range=(1,3))
+
+### Find best number of features to use for our fave models ####
+
+# from sklearn.naive_bayes import ComplementNB
+# cnb = ComplementNB()
+
+# feat_range = [3000, 4000, 5000, 6000, 7000, 8000]
+# scores = []
+# for i in feat_range:
+#     print(f'i = {i}')
+#     rs_train_labels, rs_test_labels, rs_vec_dict, rs_tfidf_dict = preprocess(raw_data, 
+#                                                                          resample=True,
+#                                                                          max_features=i,
+#                                                                          ngram_range=(1,3))
+#     cnb.fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+#     this_score = cnb.score(rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+#     scores.append(this_score)
+#     print(f'score = {this_score}')
+# # scores = [0.56, 0.59, 0.59, 0.60, 0.59, 0.58]
+
+
+# from sklearn.neural_network import MLPClassifier
+# mlp = MLPClassifier(random_state=3, max_iter=1)
+
+# feat_range = [100, 300, 500, 700, 900]
+# scores = []
+# for i in feat_range:
+#     print(f'i = {i}')
+#     rs_train_labels, rs_test_labels, rs_vec_dict, rs_tfidf_dict = preprocess(raw_data, 
+#                                                                           resample=True,
+#                                                                           max_features=i,
+#                                                                           ngram_range=(1,3))
+#     mlp.fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+#     this_score = mlp.score(rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+#     scores.append(this_score)
+#     print(f'score = {this_score}')
+# # scores = [0.38, 0.46, 0.52, 0.55, 0.53]
 
 
 #%% Complement Naive Bayes
@@ -31,7 +69,14 @@ cnb = ComplementNB()
 
 cnb.fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
 cnb_pred = cnb.predict(rs_tfidf_dict['trscrp_test_data_tfidf'])
-class_rep_cnb_trscrp = classification_report(cnb_pred, rs_test_labels, zero_division=0) # 0.77 accuracy with n_resampled=1103
+class_rep_cnb_trscrp_rs = classification_report(cnb_pred, rs_test_labels, zero_division=0) 
+# 0.77 accuracy when resample train and test together, 0.55 accuracy when resampled separately
+# 0.6 when you add params max_features=6000 and ngram_range=(1,3) to tfidf vectorizer
+
+cnb.fit(tfidf_dict['trscrp_train_data_tfidf'], train_labels)
+cnb_pred = cnb.predict(tfidf_dict['trscrp_test_data_tfidf'])
+class_rep_cnb_trscrp = classification_report(cnb_pred, test_labels, zero_division=0) 
+# 0.33 accuracy without resampling
 
 
 #%% Dimensionality Reduction (PCA)
@@ -42,8 +87,8 @@ pca = PCA(n_components=.95)
 # Not resampled
 trscrp_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['trscrp_train_data_vec']))
 trscrp_vec_test = pd.DataFrame(pca.transform(vec_dict['trscrp_test_data_vec']))
-trscrp_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['trscrp_train_data_tfidf']))
-trscrp_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['trscrp_test_data_tfidf']))
+trscrp_tfidf_train = pd.DataFrame(pca.fit_transform(rs_tfidf_dict['trscrp_train_data_tfidf']))
+trscrp_tfidf_test = pd.DataFrame(pca.transform(rs_tfidf_dict['trscrp_test_data_tfidf']))
 
 kwords_vec_train = pd.DataFrame(pca.fit_transform(vec_dict['kwords_train_data_vec']))
 kwords_vec_test = pd.DataFrame(pca.transform(vec_dict['kwords_test_data_vec']))
@@ -55,6 +100,7 @@ kwords_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['kwords_test_data_tfid
 from sklearn.ensemble import RandomForestClassifier
 rfc = RandomForestClassifier(random_state=1)
 
+### use grid search to find best params for this one setup... (tfidf with PCA) ###
 # from sklearn.model_selection import GridSearchCV
 # params =  {'n_estimators':[50, 100, 200],
 #             'max_depth' : [2,4,8]}
@@ -70,75 +116,99 @@ rfc = RandomForestClassifier().fit(vec_dict['kwords_train_data_vec'], train_labe
 rfc_pred = rfc.predict(vec_dict['kwords_test_data_vec'])
 class_rep_rfc_kwords = classification_report(rfc_pred, test_labels, zero_division=0)
 
-h = confusion_matrix(rfc_pred, test_labels, normalize='true')
+h = confusion_matrix(cnb.predict(tfidf_dict['trscrp_test_data_tfidf']), test_labels, normalize='true')
 sb.heatmap(h)
 
 rfc = RandomForestClassifier(random_state=1).fit(rs_vec_dict['trscrp_train_data_vec'], rs_train_labels)
 rs_rfc_pred = rfc.predict(rs_vec_dict['trscrp_test_data_vec'])
-class_rep_rs_rfc_trscrp = classification_report(rs_rfc_pred, rs_test_labels, zero_division=0) # 0.80
+class_rep_rs_rfc_trscrp = classification_report(rs_rfc_pred, rs_test_labels, zero_division=0)
 
-rfc = RandomForestClassifier(random_state=1).fit(rs_vec_dict['kwords_train_data_vec'], rs_train_labels)
-rs_rfc_pred = rfc.predict(rs_vec_dict['kwords_test_data_vec'])
-class_rep_rs_rfc_kwords = classification_report(rs_rfc_pred, rs_test_labels, zero_division=0) # 0.76
 
 #%% K-Nearest Neighbors (plots are saved)
-def run_knn(train_in, test_in, train_label_in, test_label_in, 
-            plot_name, 
-            neighbors_min = 1, neighbors_max = 10, 
-            viz = True):
-    from sklearn.neighbors import KNeighborsClassifier
-    from tqdm import tqdm
-    
-    neighbors = np.arange(neighbors_min, neighbors_max)
-    train_accuracy =np.empty(len(neighbors))
-    test_accuracy = np.empty(len(neighbors))
-    
-    for i, k in tqdm(enumerate(neighbors)):
-        #Setup a knn classifier with k neighbors
-        knn = KNeighborsClassifier(n_neighbors=k)
-        
-        #Fit the model
-        # knn.fit(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
-        knn.fit(train_in, train_label_in)
-        
-        #Compute accuracy on the training set
-        # train_accuracy[i] = knn.score(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
-        train_accuracy[i] = knn.score(train_in, train_label_in)
-        
-        #Compute accuracy on the test set
-        # test_accuracy[i] = knn.score(tfidf_dict["trscrp_test_data_tfidf"], test_labels) 
-        test_accuracy[i] = knn.score(test_in, test_label_in) 
-        
-    if viz is True: 
-        plt.title('k-NN Varying number of neighbors: '+plot_name)
-        plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
-        plt.plot(neighbors, train_accuracy, label='Training accuracy')
-        plt.legend()
-        plt.xlabel('Number of neighbors')
-        plt.ylabel('Accuracy')
-        plt.show()
-        
-run_knn(train_in=kwords_tfidf_train, test_in=kwords_tfidf_test, 
-        train_label_in=train_labels, test_label_in=test_labels, 
-        plot_name="kwords_tfidf")
-
-run_knn(train_in=kwords_vec_train, test_in=kwords_vec_test, 
-        train_label_in=train_labels, test_label_in=test_labels, 
-        plot_name="kwords_vec")
-
-# iteration won't move forward, knn is slow and not performing well
-run_knn(train_in=rs_tfidf_dict['trscrp_train_data_tfidf'], 
-        test_in=rs_tfidf_dict['trscrp_test_data_tfidf'], 
-        train_label_in=rs_train_labels, test_label_in=rs_test_labels, 
-        plot_name="rs trscrp tfidf")
-
-# resampled keywords (still slow...can't tell if it is running)
 from sklearn.neighbors import KNeighborsClassifier
-knn = KNeighborsClassifier(n_neighbors=4)
-knn.fit(rs_vec_dict['kwords_train_data_vec'], rs_train_labels)
-knn.score(rs_vec_dict['kwords_test_data_vec'], rs_test_labels)
-knn_pred = knn.predict(rs_vec_dict['kwords_test_data_vec'])
-class_rep_knn_kwvec = classification_report(knn_pred, rs_test_labels, zero_division=0)
+
+#Setup arrays to store training and test accuracies
+neighbors = np.arange(1,9)
+train_accuracy =np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+
+from tqdm import tqdm
+for i,k in tqdm(enumerate(neighbors)): #train with tfidf
+    #Setup a knn classifier with k neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    
+    #Fit the model
+    # knn.fit(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    knn.fit(kwords_tfidf_train, train_labels)
+    
+    #Compute accuracy on the training set
+    # train_accuracy[i] = knn.score(tfidf_dict["trscrp_train_data_tfidf"], train_labels)
+    train_accuracy[i] = knn.score(kwords_tfidf_train, train_labels)
+    
+    #Compute accuracy on the test set
+    # test_accuracy[i] = knn.score(tfidf_dict["trscrp_test_data_tfidf"], test_labels) 
+    test_accuracy[i] = knn.score(kwords_tfidf_test, test_labels) 
+
+#Generate plot
+plt.title('k-NN Varying number of neighbors: kwords_tfidf')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training accuracy')
+plt.legend()
+plt.xlabel('Number of neighbors')
+plt.ylabel('Accuracy')
+plt.show()
+
+# train with kwords_vec
+neighbors = np.arange(1,9)
+train_accuracy =np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+for i,k in tqdm(enumerate(neighbors)):
+    #Setup a knn classifier with k neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    
+    #Fit the model
+    knn.fit(kwords_vec_train, train_labels)
+    
+    #Compute accuracy on the training set
+    train_accuracy[i] = knn.score(kwords_vec_train, train_labels)
+    
+    #Compute accuracy on the test set
+    test_accuracy[i] = knn.score(kwords_vec_test, test_labels) 
+
+#Generate plot
+plt.title('k-NN Varying number of neighbors: kwords_vec')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training accuracy')
+plt.legend()
+plt.xlabel('Number of neighbors')
+plt.ylabel('Accuracy')
+plt.show()
+
+# train with rs_data
+neighbors = np.arange(1,9)
+train_accuracy =np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+for i,k in tqdm(enumerate(neighbors)):
+    #Setup a knn classifier with k neighbors
+    knn = KNeighborsClassifier(n_neighbors=k)
+    
+    #Fit the model
+    knn.fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+    
+    #Compute accuracy on the training set
+    train_accuracy[i] = knn.score(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+    
+    #Compute accuracy on the test set
+    test_accuracy[i] = knn.score(rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels) 
+
+#Generate plot
+plt.title('k-NN Varying number of neighbors: rs_train data')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training accuracy')
+plt.legend()
+plt.xlabel('Number of neighbors')
+plt.ylabel('Accuracy')
+plt.show()
 
 #%% Neural Network
 
@@ -148,9 +218,11 @@ mlp_pred = mlp.predict(trscrp_vec_test)
 class_rep_mlp_trscrp = classification_report(mlp_pred, test_labels, zero_division=0)
 
 # with resampled data
-mlp = MLPClassifier(random_state=3, max_iter=100).fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
+mlp = MLPClassifier(random_state=3, max_iter=1).fit(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels)
 mlp_pred = mlp.predict(rs_tfidf_dict['trscrp_test_data_tfidf'])
-class_rep_mlp_trscrp = classification_report(mlp_pred, rs_test_labels, zero_division=0) # 0.79 accuracy (2 or 100 iterations)
+class_rep_mlp_trscrp = classification_report(mlp_pred, rs_test_labels, zero_division=0) 
+# 0.79 accuracy (2 iterations) resample train and test together
+# 0.52 resampled separately, max_features=6000, ngram_range=(1,3)
 
 #%% Experimental stuff
 

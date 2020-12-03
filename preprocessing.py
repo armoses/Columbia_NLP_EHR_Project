@@ -149,7 +149,7 @@ def main():
 # and see what gets the best performance...?
 
 def clean_text(str_in):
-    str_out = re.sub("[^A-z0-9-]+", " ", str_in.lower())
+    str_out = re.sub("[^A-z]+", " ", str_in.lower())
     return str_out
     
 def remove_stopwords(str_in): 
@@ -171,9 +171,9 @@ def vectorize(train_series, test_series):
     test_vec.columns = vectorizer.get_feature_names()
     return train_vec, test_vec
 
-def tfidf(train_series, test_series):
+def tfidf(train_series, test_series, mf=None, ng=(1,1), mdf=1.0):
     from sklearn.feature_extraction.text import TfidfVectorizer
-    vectorizer = TfidfVectorizer()
+    vectorizer = TfidfVectorizer(max_features=mf, ngram_range=ng, max_df=mdf)
     train_vec = pd.DataFrame(vectorizer.fit_transform(train_series).toarray())
     test_vec = pd.DataFrame(vectorizer.transform(test_series).toarray())
     train_vec.columns = vectorizer.get_feature_names()
@@ -197,7 +197,8 @@ def resample_df(in_df, n_new):
     
     return new_df
 
-def preprocess(raw_data, resample=True, n_resampled=None):
+def preprocess(raw_data, resample=True, max_features=None, ngram_range=(1,1)):
+    raw_data = raw_data[['transcription', 'keywords', 'medical_specialty']].copy()
     
     # Clean text
     print('Cleaning text...')    
@@ -222,15 +223,7 @@ def preprocess(raw_data, resample=True, n_resampled=None):
     stem_data = no_stopw_data.copy()
     for i in stem_data.columns: 
         stem_data[i] = stem_data[i].apply(lambda x: " ".join([ps.stem(word) for word in word_tokenize(x)]))
-    
-    # Resample
-    if resample is True:
-        print('Resampling...')
-        if n_resampled == None:
-            labels, label_counts = np.unique(raw_data['medical_specialty'], return_counts=True)
-            n_resampled = max(label_counts)
-        stem_data = resample_df(stem_data, n_resampled)
-    
+
     # Train-test split
     # Split to 8:2 training:test and mimic full distribution of labels in train and test data
     from sklearn.model_selection import train_test_split
@@ -239,6 +232,21 @@ def preprocess(raw_data, resample=True, n_resampled=None):
                                                                         stratify=stem_data['medical_specialty'])  
     for df in [train_data, test_data, train_labels, test_labels]:
         df.reset_index(drop=True, inplace=True)
+        
+    # Resample
+    if resample is True:
+        print('Resampling...')
+        all_train = pd.concat([train_data, train_labels], axis=1)
+        _, label_counts = np.unique(train_labels, return_counts=True)
+        n_resampled = max(label_counts)
+        train_data = resample_df(all_train, n_resampled).iloc[:,:-1]
+        train_labels = resample_df(all_train, n_resampled).iloc[:,-1]
+        
+        all_test = pd.concat([test_data, test_labels], axis=1)
+        _, label_counts = np.unique(test_labels, return_counts=True)
+        n_resampled = max(label_counts)
+        test_data = resample_df(all_test, n_resampled).iloc[:,:-1]
+        test_labels = resample_df(all_test, n_resampled).iloc[:,-1]
         
     # Get dataframes with respective column(s) for each of the options 
     # and assign names for saving purposes
@@ -263,7 +271,7 @@ def preprocess(raw_data, resample=True, n_resampled=None):
         vec_dict[f'{train_set.name}_vec'] = train_vec
         vec_dict[f'{test_set.name}_vec'] = test_vec
         
-        train_tfidf, test_tfidf = tfidf(train_set, test_set)
+        train_tfidf, test_tfidf = tfidf(train_set, test_set, mf=max_features, ng=ngram_range, mdf=0.75)
         tfidf_dict[f'{train_set.name}_tfidf'] = train_tfidf
         tfidf_dict[f'{test_set.name}_tfidf'] = test_tfidf
       
