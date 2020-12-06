@@ -17,12 +17,188 @@ import seaborn as sb
 
 #%% Load and preprocess data (with and without resampling)
 
+# Raw data
 raw_data = pd.read_csv('mtsamples.csv', index_col=0) 
-train_labels, test_labels, vec_dict, tfidf_dict = preprocess(raw_data, resample=False)
+# No resampling, default tfidf parameters
+train_labels, test_labels, vec_dict, tfidf_dict = preprocess(raw_data, 
+                                                             resample=False,
+                                                             max_features=None,
+                                                             ngram_range=(1,1),
+                                                             max_df=1.0)
+# Resample, still default tfidf parameters
 rs_train_labels, rs_test_labels, rs_vec_dict, rs_tfidf_dict = preprocess(raw_data, 
                                                                          resample=True,
-                                                                         max_features=6000,
-                                                                         ngram_range=(1,3))
+                                                                         max_features=None,
+                                                                         ngram_range=(1,1),
+                                                                         max_df=1.0)
+# Resample, update tfidf parameters
+rs_train_labels, rs_test_labels, rs_vec_dict, param_rs_tfidf_dict = preprocess(raw_data, 
+                                                                               resample=True,
+                                                                               max_features=6000,
+                                                                               ngram_range=(1,3),
+                                                                               max_df=0.8)
+
+# PCA on non-resampled data (other sets are too big, take too long or crash)
+from sklearn.decomposition import PCA
+pca = PCA(n_components=.95)
+
+pca_tfidf_train = pd.DataFrame(pca.fit_transform(tfidf_dict['trscrp_train_data_tfidf']))
+pca_tfidf_test = pd.DataFrame(pca.transform(tfidf_dict['trscrp_test_data_tfidf']))
+
+#%% Complement Naive Bayes
+
+from sklearn.naive_bayes import ComplementNB
+cnb = ComplementNB()
+
+def run_cnb(train_data, train_label, test_data, test_label):
+    cnb.fit(train_data, train_label)
+    cnb_pred = cnb.predict(test_data)
+    class_rep_trscrp = classification_report(cnb_pred, test_label, zero_division=0)
+    
+    h = confusion_matrix(cnb_pred, test_label, normalize='true')
+    sb.heatmap(h)
+    
+    return class_rep_trscrp
+    
+no_rs_cnb = run_cnb(tfidf_dict['trscrp_train_data_tfidf'], train_labels, 
+                    tfidf_dict['trscrp_test_data_tfidf'], test_labels)
+rs_cnb = run_cnb(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                 rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+param_rs_cnb = run_cnb(param_rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                       param_rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+
+#%% Neural Network
+
+from sklearn.neural_network import MLPClassifier
+mlp = MLPClassifier(random_state=3, max_iter=1)
+
+def run_mlp(train_data, train_label, test_data, test_label):
+    mlp.fit(train_data, train_label)
+    mlp_pred = mlp.predict(test_data)
+    class_rep_trscrp = classification_report(mlp_pred, test_label, zero_division=0)
+    
+    h = confusion_matrix(mlp_pred, test_label, normalize='true')
+    sb.heatmap(h)
+    
+    return class_rep_trscrp
+    
+no_rs_mlp = run_mlp(tfidf_dict['trscrp_train_data_tfidf'], train_labels, 
+                    tfidf_dict['trscrp_test_data_tfidf'], test_labels)
+pca_no_rs_mlp = run_mlp(pca_tfidf_train, train_labels, 
+                        pca_tfidf_test, test_labels)
+rs_mlp = run_mlp(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                 rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+param_rs_mlp = run_mlp(param_rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                       param_rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+
+#%% Random Forest Classifier
+
+from sklearn.ensemble import RandomForestClassifier
+rfc = RandomForestClassifier(random_state=1)
+
+def run_rfc(train_data, train_label, test_data, test_label):
+    rfc.fit(train_data, train_label)
+    rfc_pred = rfc.predict(test_data)
+    class_rep_trscrp = classification_report(rfc_pred, test_label, zero_division=0)
+    
+    h = confusion_matrix(rfc_pred, test_label, normalize='true')
+    sb.heatmap(h)
+    
+    return class_rep_trscrp
+    
+no_rs_rfc = run_rfc(tfidf_dict['trscrp_train_data_tfidf'], train_labels, 
+                    tfidf_dict['trscrp_test_data_tfidf'], test_labels)
+pca_no_rs_rfc = run_rfc(pca_tfidf_train, train_labels, 
+                        pca_tfidf_test, test_labels)
+rs_rfc = run_rfc(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                 rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+param_rs_rfc = run_rfc(param_rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                       param_rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+    
+#%% KNN
+
+from sklearn.neighbors import KNeighborsClassifier
+knn = KNeighborsClassifier(n_neighbors=8)
+
+def run_knn(train_data, train_label, test_data, test_label):
+    knn.fit(train_data, train_label)
+    knn_pred = knn.predict(test_data)
+    class_rep_trscrp = classification_report(knn_pred, test_label, zero_division=0)
+    
+    h = confusion_matrix(knn_pred, test_label, normalize='true')
+    sb.heatmap(h)
+    
+    return class_rep_trscrp
+    
+no_rs_knn = run_knn(tfidf_dict['trscrp_train_data_tfidf'], train_labels, 
+                    tfidf_dict['trscrp_test_data_tfidf'], test_labels)
+pca_no_rs_knn = run_knn(pca_tfidf_train, train_labels, 
+                        pca_tfidf_test, test_labels)
+rs_knn = run_knn(rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                 rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+param_rs_knn = run_knn(param_rs_tfidf_dict['trscrp_train_data_tfidf'], rs_train_labels, 
+                       param_rs_tfidf_dict['trscrp_test_data_tfidf'], rs_test_labels)
+
+
+#%% LDA
+
+from sklearn.decomposition import LatentDirichletAllocation
+n_labels = len(raw_data.medical_specialty.unique())
+
+def run_lda(train_df, train_labels, test_df, test_labels):
+    print('Running LDA...')
+    lda = LatentDirichletAllocation(random_state=0, n_components=n_labels)
+    train_trans = lda.fit_transform(train_df)
+    lda_predicted_labels = pd.DataFrame(lda.transform(test_df))
+    
+    print('Getting test predictions...')
+    model_comps = pd.DataFrame(lda.components_)
+    model_comps = model_comps.div(model_comps.sum(axis=1), axis=0)
+    model_comps.columns = train_df.columns
+    
+    component_labels = {}      
+    train_comp_labels = pd.DataFrame(train_trans).idxmax(axis=1)
+    for component in range(40):
+        this_comp_labels = train_labels[train_comp_labels == component]
+        if len(this_comp_labels) > 0:
+            component_labels[component] = this_comp_labels.mode()[0]
+        else:
+            component_labels[component] = 'no_label'
+    lda_predicted_labels.columns = component_labels.values()
+    lda_predicted_labels = lda_predicted_labels.idxmax(axis=1)
+    
+    class_rep_trscrp = classification_report(lda_predicted_labels, test_labels, zero_division=0)
+    h = confusion_matrix(lda_predicted_labels, test_labels, normalize='true')
+    sb.heatmap(h)
+    
+    print('Finding key words for each specialty...')
+    label_components = {}
+    for label in train_labels.unique():
+        this_label_df = pd.DataFrame(train_trans[train_labels == label])
+        label_components[label] = this_label_df.sum().idxmax()
+    specialty_words = {}
+    for label in label_components.keys():
+        top_cols = model_comps.T.nlargest(n=5, columns=model_comps.T.columns[label_components[label]])
+        specialty_words[label] = list(top_cols.index)
+
+    return class_rep_trscrp, specialty_words
+
+no_rs_lda, no_rs_specialty_words = run_lda(tfidf_dict['trscrp_train_data_tfidf'], 
+                                         train_labels,
+                                         tfidf_dict['trscrp_test_data_tfidf'],
+                                         test_labels) # 0.31 accuracy 
+param_rs_lda, param_rs_specialty_words = run_lda(param_rs_tfidf_dict['trscrp_train_data_tfidf'], 
+                                                 rs_train_labels,
+                                                 param_rs_tfidf_dict['trscrp_test_data_tfidf'],
+                                                 rs_test_labels) 
+
+
+##############################################################################
+                    # EARLIER CODE ITERATION BELOW #
+
+
+
+#%% finding best features
 
 ### Find best number of features to use for our fave models ####
 

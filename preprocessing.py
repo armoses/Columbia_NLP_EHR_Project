@@ -197,7 +197,7 @@ def resample_df(in_df, n_new):
     
     return new_df
 
-def preprocess(raw_data, resample=True, max_features=None, ngram_range=(1,1)):
+def preprocess(raw_data, resample=True, max_features=None, ngram_range=(1,1), max_df=1):
     raw_data = raw_data[['transcription', 'keywords', 'medical_specialty']].copy()
     
     # Clean text
@@ -271,7 +271,7 @@ def preprocess(raw_data, resample=True, max_features=None, ngram_range=(1,1)):
         vec_dict[f'{train_set.name}_vec'] = train_vec
         vec_dict[f'{test_set.name}_vec'] = test_vec
         
-        train_tfidf, test_tfidf = tfidf(train_set, test_set, mf=max_features, ng=ngram_range, mdf=0.75)
+        train_tfidf, test_tfidf = tfidf(train_set, test_set, mf=max_features, ng=ngram_range, mdf=max_df)
         tfidf_dict[f'{train_set.name}_tfidf'] = train_tfidf
         tfidf_dict[f'{test_set.name}_tfidf'] = test_tfidf
       
