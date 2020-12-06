@@ -1,0 +1,46 @@
+                          precision    recall  f1-score   support
+
+       allergi immunolog       0.00      0.00      0.00         5
+                 autopsi       1.00      1.00      1.00       221
+                 bariatr       0.00      0.00      0.00        57
+cardiovascular pulmonari       0.31      0.09      0.14       767
+              chiropract       0.00      0.00      0.00        69
+     consult histori phi       0.07      0.01      0.02      1173
+  cosmet plastic surgeri       0.24      0.31      0.27       167
+               dentistri       0.35      0.89      0.50        87
+              dermatolog       0.00      0.00      0.00        26
+             diet nutrit       0.49      0.79      0.60       137
+        discharg summari       0.15      0.13      0.14       260
+       emerg room report       0.06      0.06      0.06       226
+            endocrinolog       0.24      0.73      0.36        73
+       ent otolaryngolog       0.15      0.31      0.20       108
+         gastroenterolog       0.21      0.24      0.23       192
+           gener medicin       0.05      0.03      0.03       430
+       hematolog oncolog       0.05      0.07      0.05       146
+       hospic palli care       0.00      0.00      0.00        15
+   ime qme work comp etc       0.33      0.48      0.39       155
+    lab medicin patholog       0.00      0.00      0.00         5
+                  letter       0.34      0.24      0.28       313
+               nephrolog       0.14      0.25      0.18       128
+                neurolog       0.07      0.04      0.05       337
+            neurosurgeri       0.25      0.35      0.29       162
+       obstetr gynecolog       0.30      0.35      0.32       191
+              offic note       0.00      0.00      0.00        74
+            ophthalmolog       0.33      0.35      0.34       210
+                orthoped       0.13      0.08      0.10       371
+              pain manag       0.76      0.88      0.81       189
+          pediatr neonat       0.07      0.05      0.06       338
+    physic medicin rehab       0.25      0.62      0.36        88
+                podiatri       0.00      0.00      0.00        32
+    psychiatri psycholog       0.43      0.66      0.52       145
+                radiolog       0.06      0.04      0.05       377
+             rheumatolog       0.00      0.00      0.00         7
+           sleep medicin       0.25      0.67      0.37        83
+soap chart progress note       0.12      0.06      0.08       407
+          speech languag       0.49      0.86      0.62       125
+                 surgeri       0.05      0.01      0.02       806
+                  urolog       0.25      0.40      0.31       138
+
+                accuracy                           0.20      8840
+               macro avg       0.20      0.28      0.22      8840
+            weighted avg       0.20      0.20      0.18      8840
